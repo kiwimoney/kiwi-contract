@@ -6,7 +6,7 @@ import "./interface/IMintBurnToken.sol";
 contract rHT is HRC20, IMintBurnToken {
 
     constructor(address ownerAddr) public {
-        super.initializeBEP20("Reward HT", "rHT", 18, 0, ownerAddr);
+        super.initializeHEC20("Reward HT", "rHT", 18, 0, ownerAddr);
     }
 
     /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (StakeHub).
