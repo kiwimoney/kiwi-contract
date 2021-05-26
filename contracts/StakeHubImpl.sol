@@ -24,12 +24,13 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
     mapping(address => StakeAgentImpl) public userStakeAgentMap;
 
     uint256 public stakeFeeMolecular;
-    uint256 public stakeFeeDenominator;
+    uint256 public stakeFeeDenominator = 10000;
     uint256 public unstakeFeeMolecular;
-    uint256 public unstakeFeeDenominator;
+    uint256 constant public unstakeFeeDenominator = 10000;
 
     address public admin;
     bool private _paused;
+    uint256 public stakerCounter = 0;
 
     event Deposit(address from, uint256 amount);
 
@@ -60,19 +61,6 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
     modifier whenPaused() {
         require(paused(), "Pausable: not paused");
         _;
-    }
-
-
-    modifier notContract() {
-        require(!isContract(msg.sender), "contract is not allowed");
-        require(msg.sender == tx.origin, "no proxy contract is allowed");
-        _;
-    }
-
-    function isContract(address addr) internal view returns (bool) {
-        uint size;
-        assembly { size := extcodesize(addr) }
-        return size > 0;
     }
 
     function initialize(
@@ -111,15 +99,16 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         emit NewAdmin(newAdmin_);
     }
 
-    function stake(uint256 amount, address validator) notContract nonReentrant whenNotPaused external payable returns (bool) {
+    function stake(uint256 amount, address validator) nonReentrant whenNotPaused external payable returns (bool) {
         uint256 stakeFee = amount.mul(stakeFeeMolecular).div(stakeFeeDenominator);
         require(amount.add(stakeFee)==msg.value, "msg.value should be equal to sum of stake amount and stake fee");
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         if (address(stakeAgent) == address(0x0)) {
             StakeAgentUpgradeableProxy stakeAgentProxy = new StakeAgentUpgradeableProxy(stakeAgentImplAddr,stakeAgentProxyAdminMgr,"");
             stakeAgent = StakeAgentImpl(address(stakeAgentProxy));
-            stakeAgent.initialize(msg.sender, address(this), communityTaxVault, validatorContractAddr, address(this));
+            stakeAgent.initialize(msg.sender, address(this), communityTaxVault, validatorContractAddr);
             userStakeAgentMap[msg.sender] = stakeAgent;
+            stakerCounter++;
         }
         stakeAgent.stake{value: amount}(validator);
 
@@ -129,7 +118,7 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         return true;
     }
 
-    function unstake(address validator) notContract nonReentrant whenNotPaused external returns (bool) {
+    function unstake(address validator) nonReentrant whenNotPaused external returns (bool) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         require(address(stakeAgent)!=address(0x0),"user never stake");
 
@@ -143,14 +132,14 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         return true;
     }
 
-    function claimPendingUnstake(address validator) notContract nonReentrant whenNotPaused external returns (bool) {
+    function claimPendingUnstake(address validator) nonReentrant whenNotPaused external returns (bool) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         require(address(stakeAgent)!=address(0x0),"user never stake");
         stakeAgent.claimPendingUnstake(validator);
         return true;
     }
 
-    function claimStakeProfit() notContract nonReentrant whenNotPaused external returns (bool) {
+    function claimStakeProfit() nonReentrant whenNotPaused external returns (bool) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         require(address(stakeAgent)!=address(0x0),"user never stake");
         stakeAgent.claimStakeProfit();
@@ -165,21 +154,17 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         return stakeAgent.pendingUnstakeClaimHeight(validator);
     }
 
-    function setStakeFeeRate(uint256 newStakeFeeMolecular, uint256 newStakeFeeDenominator) onlyAdmin external {
-        require(newStakeFeeDenominator>0, "stakeFeeDenominator must be positive");
+    function setStakeFeeRate(uint256 newStakeFeeMolecular) onlyAdmin external {
         if (newStakeFeeMolecular>0) {
-            require(newStakeFeeDenominator.div(newStakeFeeMolecular)>200, "stake fee rate must be less than 0.5%");
+            require(stakeFeeDenominator.div(newStakeFeeMolecular)>200, "stake fee rate must be less than 0.5%");
         }
         stakeFeeMolecular = newStakeFeeMolecular;
-        stakeFeeDenominator = newStakeFeeDenominator;
     }
 
-    function setUnstakeFeeRate(uint256 newUnstakeFeeMolecular, uint256 newUnstakeFeeDenominator) onlyAdmin external {
-        require(newUnstakeFeeDenominator>0, "unstakeFeeDenominator must be positive");
+    function setUnstakeFeeRate(uint256 newUnstakeFeeMolecular) onlyAdmin external {
         if (newUnstakeFeeMolecular>0) {
-            require(newUnstakeFeeDenominator.div(newUnstakeFeeMolecular)>200, "unstake fee rate must be less than 0.5%");
+            require(unstakeFeeDenominator.div(newUnstakeFeeMolecular)>200, "unstake fee rate must be less than 0.5%");
         }
         unstakeFeeMolecular = newUnstakeFeeMolecular;
-        unstakeFeeDenominator = newUnstakeFeeDenominator;
     }
 }

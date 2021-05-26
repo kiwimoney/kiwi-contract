@@ -20,12 +20,12 @@ contract StakeAgentImpl is Ownable,Initializable {
     constructor() public {
     }
 
-    function initialize(address payable _staker, address _stakeHub, address _communityTaxVault, address _validatorContractAddr, address _ownerAddr) external initializer {
+    function initialize(address payable _staker, address _stakeHub, address _communityTaxVault, address _validatorContractAddr) external initializer {
         staker = _staker;
         stakeHub = _stakeHub;
         communityTaxVault = _communityTaxVault;
         validatorContractAddr = _validatorContractAddr;
-        super.initializeOwner(_ownerAddr);
+        super.initializeOwner(_stakeHub);
     }
 
     function stake(address validator) onlyOwner external payable returns (bool) {
@@ -61,7 +61,7 @@ contract StakeAgentImpl is Ownable,Initializable {
         uint256 unstakeFee = amount.mul(unstakeFeeMolecular).div(unstakeFeeDenominator);
 
         IHECOStake(validatorContractAddr).withdrawStaking(validator);
-        staker.transfer(amount.sub(unstakeFee));
+        staker.call{value: amount.sub(unstakeFee)}("");
         communityTaxVault.call{value: unstakeFee}("");
         emit WithdrawPendingUnstake(staker, amount);
         return true;
@@ -69,7 +69,7 @@ contract StakeAgentImpl is Ownable,Initializable {
 
     function claimStakeProfit() onlyOwner external returns(bool) {
         uint256 stakeProfit = address(this).balance;
-        staker.transfer(stakeProfit);
+        staker.call{value: stakeProfit}("");
         emit WithdrawProfit(staker, stakeProfit);
         return true;
     }
