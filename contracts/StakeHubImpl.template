@@ -116,7 +116,7 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
 
     function setAdmin(address newAdmin_) external {
         require(msg.sender == admin, "setAdmin: Call must come from admin.");
-        require(newAdmin_ != address(0x00), "setAdmin: Call must come from admin.");
+        require(newAdmin_ != address(0x00), "new admin must not be zero address.");
         admin = newAdmin_;
 
         emit NewAdmin(newAdmin_);
