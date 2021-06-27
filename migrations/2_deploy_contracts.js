@@ -12,7 +12,7 @@ const CommunityTaxVault = artifacts.require("CommunityTaxVault");
 const Governor = artifacts.require("Governor");
 const Timelock = artifacts.require("Timelock");
 
-const MockValidators = artifacts.require("MockValidators");
+const MockNodeVoting = artifacts.require("NodeVoting");
 const MockStakeAgentImpl = artifacts.require("MockStakeAgentImpl");
 
 module.exports = function (deployer, network, accounts) {
@@ -24,7 +24,7 @@ module.exports = function (deployer, network, accounts) {
     await deployer.deploy(FarmRewardLock);
     await deployer.deploy(FarmingCenter);
 
-    await deployer.deploy(MockValidators);
+    await deployer.deploy(MockNodeVoting);
     await deployer.deploy(MockStakeAgentImpl);
 
     await deployer.deploy(StakeAgentProxyAdminMgr);
@@ -41,7 +41,7 @@ module.exports = function (deployer, network, accounts) {
     const farmingCenterInst = await FarmingCenter.deployed();
     const stakeAgentProxyAdminMgrInst = await StakeAgentProxyAdminMgr.deployed();
 
-    await stakeHubInst.initialize(initialGov, rHT.address, StakeAgentImpl.address, StakeAgentProxyAdminMgr.address, CommunityTaxVault.address, MockValidators.address, {from: deployerAccount});
+    await stakeHubInst.initialize(initialGov, rHT.address, StakeAgentImpl.address, StakeAgentProxyAdminMgr.address, CommunityTaxVault.address, MockNodeVoting.address, {from: deployerAccount});
     await farmRewardLockInst.initialize(KWI.address, "113", "100", FarmingCenter.address, initialGov, {from: deployerAccount});
     await farmingCenterInst.initialize(initialGov, KWI.address, FarmRewardLock.address, 7, 10, {from: deployerAccount});
     await stakeAgentProxyAdminMgrInst.initialize(initialGov, StakeHub.address);

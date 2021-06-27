@@ -28,46 +28,44 @@ contract StakeAgentImpl is Ownable,Initializable {
         super.initializeOwner(_stakeHub);
     }
 
-    function stake(address validator) onlyOwner external payable returns (bool) {
-        IHECOStake(validatorContractAddr).stake{value: msg.value}(validator);
+    function stake(uint256 pid) onlyOwner external payable returns (bool) {
+        IHECOStake(validatorContractAddr).vote{value: msg.value}(pid);
         return true;
     }
 
-    function unstake(address validator) onlyOwner external returns (bool) {
-        IHECOStake(validatorContractAddr).unstake(validator);
+    function unstake(uint256 pid, uint256 amount) onlyOwner external returns (bool) {
+        IHECOStake(validatorContractAddr).revokeVote(pid, amount);
         return true;
     }
 
-    function pendingUnstakeClaimHeight(address validator) external view returns (uint256) {
-        (uint256 amount, uint256 unstakeBlock,) = IHECOStake(validatorContractAddr).getStakingInfo(address(this), validator);
-        uint256 stakingLockPeriod = IHECOStake(validatorContractAddr).StakingLockPeriod();
-        if (amount > 0) {
-            return unstakeBlock.add(stakingLockPeriod);
-        }
-        return 0;
+    function pendingUnstakeClaimTime(uint256 pid) external view returns (uint256) {
+        (,,uint256 lockingEndTime) = IHECOStake(validatorContractAddr).revokingInfo(pid, address(this));
+        return lockingEndTime;
     }
 
-    function getStakeAmount(address validator) external view returns (uint256) {
-        (uint256 amount,,) = IHECOStake(validatorContractAddr).getStakingInfo(address(this), validator);
+    function getStakeAmount(uint256 pid) external view returns (uint256) {
+        (uint256 amount,) = IHECOStake(validatorContractAddr).userInfo(pid, address(this));
         return amount;
     }
 
-    function claimPendingUnstake(address validator) onlyOwner external returns(bool) {
-        (uint256 amount,,) = IHECOStake(validatorContractAddr).getStakingInfo(address(this), validator);
-        require(amount > 0, "no pending unstake");
+    function claimPendingUnstake(uint256 pid) onlyOwner external returns(bool) {
+        require(IHECOStake(validatorContractAddr)._isWithdrawable(address(this), pid), "unstake is still in pending status");
+        (uint256 revokingAmount,,) = IHECOStake(validatorContractAddr).revokingInfo(pid, address(this));
 
         uint256 unstakeFeeMolecular = IStakeHub(stakeHub).unstakeFeeMolecular();
         uint256 unstakeFeeDenominator = IStakeHub(stakeHub).unstakeFeeDenominator();
-        uint256 unstakeFee = amount.mul(unstakeFeeMolecular).div(unstakeFeeDenominator);
+        uint256 unstakeFee = revokingAmount.mul(unstakeFeeMolecular).div(unstakeFeeDenominator);
 
-        IHECOStake(validatorContractAddr).withdrawStaking(validator);
-        staker.call{value: amount.sub(unstakeFee)}("");
+        IHECOStake(validatorContractAddr).withdraw(pid);
+
+        staker.call{value: revokingAmount.sub(unstakeFee)}("");
         communityTaxVault.call{value: unstakeFee}("");
-        emit WithdrawPendingUnstake(staker, amount);
+        emit WithdrawPendingUnstake(staker, revokingAmount);
         return true;
     }
 
-    function claimStakeProfit() onlyOwner external returns(bool) {
+    function claimStakeProfit(uint256 pid) onlyOwner external returns(bool) {
+        IHECOStake(validatorContractAddr).claimReward(pid);
         uint256 stakeProfit = address(this).balance;
         staker.call{value: stakeProfit}("");
         emit WithdrawProfit(staker, stakeProfit);

@@ -21,12 +21,12 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
 {% if mock %}
     address public validatorContractAddr;
 {% else %}
-    address public constant validatorContractAddr = 0x000000000000000000000000000000000000f000;
+    address public constant validatorContractAddr = 0x80d1769ac6fee59BE5AAC1952a90270bbd2Ceb2F;
 {% endif %}
     mapping(address => StakeAgentImpl) public userStakeAgentMap;
 
     uint256 public stakeFeeMolecular;
-    uint256 public stakeFeeDenominator = 10000;
+    uint256 constant public stakeFeeDenominator = 10000;
     uint256 public unstakeFeeMolecular;
     uint256 constant public unstakeFeeDenominator = 10000;
 
@@ -122,7 +122,7 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         emit NewAdmin(newAdmin_);
     }
 
-    function stake(uint256 amount, address validator) nonReentrant whenNotPaused external payable returns (bool) {
+    function stake(uint256 pid, uint256 amount) nonReentrant whenNotPaused external payable returns (bool) {
         uint256 stakeFee = amount.mul(stakeFeeMolecular).div(stakeFeeDenominator);
         require(amount.add(stakeFee)==msg.value, "msg.value should be equal to sum of stake amount and stake fee");
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
@@ -133,7 +133,7 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
             userStakeAgentMap[msg.sender] = stakeAgent;
             stakerCounter++;
         }
-        stakeAgent.stake{value: amount}(validator);
+        stakeAgent.stake{value: amount}(pid);
 
         IMintBurnToken(rHT).mintTo(msg.sender, amount);
         communityTaxVault.call{value: stakeFee}("");
@@ -141,40 +141,39 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         return true;
     }
 
-    function unstake(address validator) nonReentrant whenNotPaused external returns (bool) {
+    function unstake(uint256 pid, uint256 amount) nonReentrant whenNotPaused external returns (bool) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         require(address(stakeAgent)!=address(0x0),"user never stake");
 
-        uint256 previousStakedAmount = stakeAgent.getStakeAmount(validator);
-        IERC20(rHT).safeTransferFrom(msg.sender, address(this), previousStakedAmount);
-        IMintBurnToken(rHT).burn(previousStakedAmount);
+        IERC20(rHT).safeTransferFrom(msg.sender, address(this), amount);
+        IMintBurnToken(rHT).burn(amount);
 
-        stakeAgent.unstake(validator);
+        stakeAgent.unstake(pid, amount);
 
-        emit LogStake(msg.sender, previousStakedAmount);
+        emit LogStake(msg.sender, amount);
         return true;
     }
 
-    function claimPendingUnstake(address validator) nonReentrant whenNotPaused external returns (bool) {
+    function claimPendingUnstake(uint256 pid) nonReentrant whenNotPaused external returns (bool) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         require(address(stakeAgent)!=address(0x0),"user never stake");
-        stakeAgent.claimPendingUnstake(validator);
+        stakeAgent.claimPendingUnstake(pid);
         return true;
     }
 
-    function claimStakeProfit() nonReentrant whenNotPaused external returns (bool) {
+    function claimStakeProfit(uint256 pid) nonReentrant whenNotPaused external returns (bool) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[msg.sender];
         require(address(stakeAgent)!=address(0x0),"user never stake");
-        stakeAgent.claimStakeProfit();
+        stakeAgent.claimStakeProfit(pid);
         return true;
     }
 
-    function pendingUnstakeClaimHeight(address validator, address staker) external view returns (uint256) {
+    function pendingUnstakeClaimTime(uint256 pid, address staker) external view returns (uint256) {
         StakeAgentImpl stakeAgent = userStakeAgentMap[staker];
         if (address(stakeAgent)==address(0x0)) {
             return 0;
         }
-        return stakeAgent.pendingUnstakeClaimHeight(validator);
+        return stakeAgent.pendingUnstakeClaimTime(pid);
     }
 
     function setStakeFeeRate(uint256 newStakeFeeMolecular) onlyAdmin external {
