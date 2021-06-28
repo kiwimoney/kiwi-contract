@@ -154,6 +154,14 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         return stakeAgent.pendingUnstakeClaimTime(pid);
     }
 
+    function pendingReward(uint256 pid, address staker) external view returns (uint256) {
+        StakeAgentImpl stakeAgent = userStakeAgentMap[staker];
+        if (address(stakeAgent)==address(0x0)) {
+            return 0;
+        }
+        return IHECOStake(validatorContractAddr).pendingReward(pid, address(stakeAgent));
+    }
+
     function setStakeFeeRate(uint256 newStakeFeeMolecular) onlyAdmin external {
         if (newStakeFeeMolecular>0) {
             require(stakeFeeDenominator.div(newStakeFeeMolecular)>200, "stake fee rate must be less than 0.5%");

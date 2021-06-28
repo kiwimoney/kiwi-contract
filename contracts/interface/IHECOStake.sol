@@ -8,4 +8,5 @@ interface IHECOStake {
     function userInfo(uint _pid, address user) external view returns (uint256 amount, uint256 rewardDebt);
     function revokingInfo(address user, uint _pid) external view returns (uint256 amount, uint256 status, uint256 lockingEndTime);
     function _isWithdrawable(address _user, uint256 _pid) external view returns (bool);
+    function pendingReward(uint256 _pid, address _user) external view returns (uint256);
 }
