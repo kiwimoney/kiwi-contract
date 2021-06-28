@@ -39,7 +39,7 @@ contract StakeAgentImpl is Ownable,Initializable {
     }
 
     function pendingUnstakeClaimTime(uint256 pid) external view returns (uint256) {
-        (,,uint256 lockingEndTime) = IHECOStake(validatorContractAddr).revokingInfo(pid, address(this));
+        (,,uint256 lockingEndTime) = IHECOStake(validatorContractAddr).revokingInfo(address(this), pid);
         return lockingEndTime;
     }
 
@@ -50,7 +50,7 @@ contract StakeAgentImpl is Ownable,Initializable {
 
     function claimPendingUnstake(uint256 pid) onlyOwner external returns(bool) {
         require(IHECOStake(validatorContractAddr)._isWithdrawable(address(this), pid), "unstake is still in pending status");
-        (uint256 revokingAmount,,) = IHECOStake(validatorContractAddr).revokingInfo(pid, address(this));
+        (uint256 revokingAmount,,) = IHECOStake(validatorContractAddr).revokingInfo(address(this), pid);
 
         uint256 unstakeFeeMolecular = IStakeHub(stakeHub).unstakeFeeMolecular();
         uint256 unstakeFeeDenominator = IStakeHub(stakeHub).unstakeFeeDenominator();

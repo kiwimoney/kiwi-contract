@@ -167,4 +167,10 @@ contract StakeHubImpl is Context, Initializable, ReentrancyGuard {
         }
         unstakeFeeMolecular = newUnstakeFeeMolecular;
     }
+
+    function setStakeAgentImplAddr(address newStakeAgentImplAddr) onlyAdmin external {
+        require(newStakeAgentImplAddr!=address(0x0),"can't set to zero address");
+        stakeAgentImplAddr = newStakeAgentImplAddr;
+    }
+
 }
